@@ -5,6 +5,7 @@ services:
       dockerfile: ./docker/almalinux9/Dockerfile
     container_name: almalinux9
     volumes:
-      - ./samples:/samples:ro
       - ./scripts:/scripts:ro
+      - ./samples:/samples:ro
+      - ./outputs:/outputs:ro
     tty: true
