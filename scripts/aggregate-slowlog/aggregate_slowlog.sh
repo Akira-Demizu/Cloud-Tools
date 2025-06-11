@@ -5,9 +5,10 @@ INCLUDE_SAMPLE=false
 FROM_EPOCH=0
 TO_EPOCH=32503680000
 FILTER_TABLES=()
+OUTPUT_DIR=""
 
 usage() {
-  echo "Usage: $0 --path=/path/to/slow.log [--output=csv|md] [--detail] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
+  echo "Usage: $0 --path=/path/to/slow.log [--output=/path/to/outputdir] [--format=md|csv] [--detail] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
   exit 1
 }
 
@@ -35,8 +36,9 @@ parse_datetime() {
 for arg in "$@"; do
   case $arg in
     --path=*) SLOWLOG="${arg#*=}" ;;
-    --output=csv) FORMAT="csv" ;;
-    --output=md) FORMAT="md" ;;
+    --output=*) OUTPUT_DIR="${arg#*=}" ;;
+    --format=csv) FORMAT="csv" ;;
+    --format=md) FORMAT="md" ;;
     --detail) INCLUDE_SAMPLE=true ;;
     --start=*) FROM_EPOCH=$(parse_datetime "${arg#*=}") ;;
     --end=*) TO_EPOCH=$(parse_datetime "${arg#*=}") ;;
@@ -47,6 +49,7 @@ done
 
 if [ -z "$SLOWLOG" ]; then echo "Error: --path is required."; usage; fi
 if [ ! -f "$SLOWLOG" ]; then echo "Error: File '$SLOWLOG' not found."; exit 1; fi
+if [ -n "$OUTPUT_DIR" ] && [ ! -d "$OUTPUT_DIR" ]; then echo "Error: Output directory '$OUTPUT_DIR' not found."; exit 1; fi
 
 TMP_DIR=$(mktemp -d)
 PARSED="$TMP_DIR/parsed.log"
@@ -81,6 +84,8 @@ function to_epoch(y, mo, d, h, mi,    cmd, result) {
   print qt "|" db "|" query
 }
 ' "$SLOWLOG" > "$PARSED"
+
+OUTFILE="$TMP_DIR/result.$FORMAT"
 
 awk -v format="$FORMAT" -v include_sample="$INCLUDE_SAMPLE" -v tables_filter="${FILTER_TABLES[*]}" -F'|' '
 function extract_tables(sql, arr,    lower, i, tbls, tbl) {
@@ -160,7 +165,14 @@ END {
       }
     }
   }
-}
-' "$PARSED"
+}' "$PARSED" > "$OUTFILE"
+
+# 出力先が指定されていれば移動
+if [ -n "$OUTPUT_DIR" ]; then
+  mv "$OUTFILE" "$OUTPUT_DIR/result.$FORMAT"
+  echo "Output written to: $OUTPUT_DIR/result.$FORMAT"
+else
+  cat "$OUTFILE"
+fi
 
 rm -rf "$TMP_DIR"

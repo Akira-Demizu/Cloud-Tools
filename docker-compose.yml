@@ -7,5 +7,5 @@ services:
     volumes:
       - ./scripts:/scripts:ro
       - ./samples:/samples:ro
-      - ./outputs:/outputs:ro
+      - ./outputs:/outputs
     tty: true
