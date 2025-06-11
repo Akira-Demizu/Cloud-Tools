@@ -1,6 +1,7 @@
 #!/bin/bash
 
 FORMAT="md"
+ENCODING="utf8"
 INCLUDE_SAMPLE=false
 FROM_EPOCH=0
 TO_EPOCH=32503680000
@@ -8,7 +9,7 @@ FILTER_TABLES=()
 OUTPUT_DIR=""
 
 usage() {
-  echo "Usage: $0 --path=/path/to/slow.log [--output=/path/to/outputdir] [--format=md|csv] [--detail] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
+  echo "Usage: $0 --path=/path/to/slow.log [--output=/path/to/outputdir] [--format=md|csv] [--encoding=utf8|utf8-bom|shift_jis] [--detail] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
   exit 1
 }
 
@@ -37,8 +38,8 @@ for arg in "$@"; do
   case $arg in
     --path=*) SLOWLOG="${arg#*=}" ;;
     --output=*) OUTPUT_DIR="${arg#*=}" ;;
-    --format=csv) FORMAT="csv" ;;
-    --format=md) FORMAT="md" ;;
+    --format=csv|--format=md) FORMAT="${arg#*=}" ;;
+    --encoding=*) ENCODING="${arg#*=}" ;;
     --detail) INCLUDE_SAMPLE=true ;;
     --start=*) FROM_EPOCH=$(parse_datetime "${arg#*=}") ;;
     --end=*) TO_EPOCH=$(parse_datetime "${arg#*=}") ;;
@@ -53,6 +54,12 @@ if [ -n "$OUTPUT_DIR" ] && [ ! -d "$OUTPUT_DIR" ]; then echo "Error: Output dire
 
 TMP_DIR=$(mktemp -d)
 PARSED="$TMP_DIR/parsed.log"
+
+# ファイル名生成（logファイル名_YYYYMMDDHHMMSS）
+BASENAME=$(basename "$SLOWLOG")
+NOW=$(date +%Y%m%d%H%M%S)
+FILENAME="${BASENAME%.*}_$NOW.$FORMAT"
+OUTFILE="$TMP_DIR/$FILENAME"
 
 awk -v from="$FROM_EPOCH" -v to="$TO_EPOCH" '
 function to_epoch(y, mo, d, h, mi,    cmd, result) {
@@ -84,8 +91,6 @@ function to_epoch(y, mo, d, h, mi,    cmd, result) {
   print qt "|" db "|" query
 }
 ' "$SLOWLOG" > "$PARSED"
-
-OUTFILE="$TMP_DIR/result.$FORMAT"
 
 awk -v format="$FORMAT" -v include_sample="$INCLUDE_SAMPLE" -v tables_filter="${FILTER_TABLES[*]}" -F'|' '
 function extract_tables(sql, arr,    lower, i, tbls, tbl) {
@@ -167,12 +172,28 @@ END {
   }
 }' "$PARSED" > "$OUTFILE"
 
-# 出力先が指定されていれば移動
+ENCODED_OUTFILE="$OUTFILE"
+
+if [ "$FORMAT" = "csv" ]; then
+  case "$ENCODING" in
+    utf8-bom)
+      ENCODED_OUTFILE="$TMP_DIR/bom_$FILENAME"
+      printf '\xEF\xBB\xBF' > "$ENCODED_OUTFILE"
+      cat "$OUTFILE" >> "$ENCODED_OUTFILE"
+      ;;
+    shift_jis)
+      ENCODED_OUTFILE="$TMP_DIR/sjis_$FILENAME"
+      nkf -s --overwrite "$OUTFILE"
+      cp "$OUTFILE" "$ENCODED_OUTFILE"
+      ;;
+  esac
+fi
+
 if [ -n "$OUTPUT_DIR" ]; then
-  mv "$OUTFILE" "$OUTPUT_DIR/result.$FORMAT"
-  echo "Output written to: $OUTPUT_DIR/result.$FORMAT"
+  cp "$ENCODED_OUTFILE" "$OUTPUT_DIR/$FILENAME"
+  echo "Output written to: $OUTPUT_DIR/$FILENAME"
 else
-  cat "$OUTFILE"
+  cat "$ENCODED_OUTFILE"
 fi
 
 rm -rf "$TMP_DIR"

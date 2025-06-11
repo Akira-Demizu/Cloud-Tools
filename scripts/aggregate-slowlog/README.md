@@ -44,6 +44,19 @@ chmod +x aggregate_slowlog.sh
 ./aggregate_slowlog.sh --path=/path/to/slow.log --table=wp_posts
 ```
 
+### オプション
+
+| オプション名   | 必須 | 説明                                                                 | 例                             |
+|----------------|------|----------------------------------------------------------------------|--------------------------------|
+| `--path=`      | ✅   | 分析対象の slow.log ファイルパス                                     | `--path=/logs/slow.log`       |
+| `--output=`    | ❌   | 出力先ディレクトリ（省略時は標準出力）                               | `--output=/tmp`               |
+| `--format=`    | ❌   | 出力フォーマット（`md` または `csv`）※デフォルト: `md`              | `--format=csv`                |
+| `--encoding=`  | ❌   | 出力ファイルの文字コード（`utf8`, `utf8-bom`, `shift_jis`）※CSV時のみ有効 | `--encoding=utf8-bom`         |
+| `--detail`     | ❌   | サンプルクエリを出力に含める                                          | `--detail`                    |
+| `--start=`     | ❌   | 対象ログの開始日時（`YYYYMMDD` や `YYYYMMDD hh[:mm[:ss]]` 形式）      | `--start=20250610 04:00`      |
+| `--end=`       | ❌   | 対象ログの終了日時（同上）                                            | `--end=20250610 23`           |
+| `--table=`     | ❌   | 対象にするテーブルをカンマ区切りで指定（部分一致・フィルタリング）   | `--table=wp_posts,wp_postmeta` |
+
 ### 出力例
 
 #### マークダウン
