@@ -1,0 +1,11 @@
+services:
+  almalinux9:
+    build:
+      context: .
+      dockerfile: ./docker/almalinux9/Dockerfile
+    container_name: almalinux9
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./samples:/samples:ro
+      - ./outputs:/outputs
+    tty: true
