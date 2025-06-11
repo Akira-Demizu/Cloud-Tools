@@ -6,4 +6,6 @@ services:
     container_name: almalinux9
     volumes:
       - ./scripts:/scripts:ro
+      - ./samples:/samples:ro
+      - ./outputs:/outputs
     tty: true
