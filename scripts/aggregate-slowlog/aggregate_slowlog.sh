@@ -1,69 +1,88 @@
 #!/bin/bash
 
-# === デフォルト設定 ===
-FORMAT="md"           # デフォルトはマークダウン
-INCLUDE_SAMPLE=false  # デフォルトはサンプルクエリ非表示
+FORMAT="md"
+INCLUDE_SAMPLE=false
+FROM_EPOCH=0
+TO_EPOCH=32503680000
+FILTER_TABLES=()
 
-# === 引数処理（ロングオプション） ===
+usage() {
+  echo "Usage: $0 --path=/path/to/slow.log [--output=csv|md] [--detail] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
+  exit 1
+}
+
+parse_datetime() {
+  input="$1"
+  if [[ "$input" =~ ^([0-9]{8})([[:space:]]+([0-9]{1,2})(:([0-9]{1,2}))?(:([0-9]{1,2}))?)?$ ]]; then
+    y=${BASH_REMATCH[1]:0:4}
+    m=${BASH_REMATCH[1]:4:2}
+    d=${BASH_REMATCH[1]:6:2}
+    H=${BASH_REMATCH[3]:-0}
+    M=${BASH_REMATCH[5]:-0}
+    S=${BASH_REMATCH[7]:-0}
+    printf -v timestamp "%s-%s-%s %02d:%02d:%02d" "$y" "$m" "$d" "$H" "$M" "$S"
+    date -d "$timestamp" +%s 2>/dev/null
+    if [ $? -ne 0 ]; then
+      echo "Invalid date: $input" >&2
+      exit 1
+    fi
+  else
+    echo "Invalid datetime format: $input" >&2
+    exit 1
+  fi
+}
+
 for arg in "$@"; do
   case $arg in
-    --path=*)
-      SLOWLOG="${arg#*=}"
-      shift
-      ;;
-    --output=csv)
-      FORMAT="csv"
-      shift
-      ;;
-    --output=md)
-      FORMAT="md"
-      shift
-      ;;
-    --detail)
-      INCLUDE_SAMPLE=true
-      shift
-      ;;
-    *)
-      echo "Usage: $0 --path=/path/to/slow.log [--output=csv|md] [--detail]"
-      exit 1
-      ;;
+    --path=*) SLOWLOG="${arg#*=}" ;;
+    --output=csv) FORMAT="csv" ;;
+    --output=md) FORMAT="md" ;;
+    --detail) INCLUDE_SAMPLE=true ;;
+    --start=*) FROM_EPOCH=$(parse_datetime "${arg#*=}") ;;
+    --end=*) TO_EPOCH=$(parse_datetime "${arg#*=}") ;;
+    --table=*) IFS=',' read -ra FILTER_TABLES <<< "${arg#*=}" ;;
+    *) usage ;;
   esac
 done
 
-# === 必須チェック ===
-if [ -z "$SLOWLOG" ]; then
-  echo "Error: --path is required."
-  exit 1
-fi
+if [ -z "$SLOWLOG" ]; then echo "Error: --path is required."; usage; fi
+if [ ! -f "$SLOWLOG" ]; then echo "Error: File '$SLOWLOG' not found."; exit 1; fi
 
-if [[ ! -f "$SLOWLOG" ]]; then
-  echo "Error: File '$SLOWLOG' not found."
-  exit 1
-fi
-
-# === 一時ファイル ===
 TMP_DIR=$(mktemp -d)
 PARSED="$TMP_DIR/parsed.log"
 
-# === クエリ抽出 ===
-awk '
-/^# Query_time:/ {
-  split($0, a, " ");
-  qt=a[3];
+awk -v from="$FROM_EPOCH" -v to="$TO_EPOCH" '
+function to_epoch(y, mo, d, h, mi,    cmd, result) {
+  cmd = "date -d \"" y "-" mo "-" d " " h ":" mi "\" +%s"
+  cmd | getline result
+  close(cmd)
+  return result
 }
+/^# Time: / {
+  raw = $3
+  y = "20" substr(raw,1,2)
+  mo = substr(raw,3,2)
+  d = substr(raw,5,2)
+  h = (length(raw) >= 8 ? substr(raw,8,2) : "00")
+  mi = (length(raw) >= 10 ? substr(raw,10,2) : "00")
+  log_epoch = to_epoch(y,mo,d,h,mi)
+  keep = (log_epoch >= from && log_epoch <= to)
+}
+/^# Query_time:/ { qt = $3 }
 /^use / { db=$2 }
 /^SET timestamp=/ { next }
 /^SELECT/ || /^INSERT/ || /^UPDATE/ || /^DELETE/ {
-  query=$0;
+  if (!keep) next
+  query=$0
   while ((getline line) > 0) {
-    if (line ~ /^#/) break;
-    query = query " " line;
+    if (line ~ /^#/) break
+    query = query " " line
   }
-  print qt "|" db "|" query;
-}' "$SLOWLOG" > "$PARSED"
+  print qt "|" db "|" query
+}
+' "$SLOWLOG" > "$PARSED"
 
-# === 集計＆出力 ===
-awk -v format="$FORMAT" -v include_sample="$INCLUDE_SAMPLE" -F'|' '
+awk -v format="$FORMAT" -v include_sample="$INCLUDE_SAMPLE" -v tables_filter="${FILTER_TABLES[*]}" -F'|' '
 function extract_tables(sql, arr,    lower, i, tbls, tbl) {
   lower = tolower(sql)
   n = split(lower, arr, /(from|join|update|into)/)
@@ -81,19 +100,29 @@ function extract_tables(sql, arr,    lower, i, tbls, tbl) {
   delete seen
   return (tbls == "" ? "unknown" : tbls)
 }
-
+BEGIN {
+  n_filters = split(tables_filter, filters, /[, ]+/)
+}
 {
   qt = $1 + 0
   db = $2
   q = $3
-
   tbls = extract_tables(q, parts)
+  matched = (n_filters == 0)
+  if (!matched) {
+    for (f = 1; f <= n_filters; f++) {
+      if (index(tbls, filters[f]) > 0) {
+        matched = 1
+        break
+      }
+    }
+  }
+  if (!matched) next
   key = tbls
   count[key]++
   total_qt[key] += qt
   if (!sample[key]) sample[key] = q
 }
-
 END {
   if (format == "csv") {
     if (include_sample == "true") {
@@ -110,7 +139,6 @@ END {
       print "|----|--------|--------|------------------|"
     }
   }
-
   i = 1
   PROCINFO["sorted_in"] = "@val_num_desc"
   for (k in count) {

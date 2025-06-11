@@ -44,15 +44,19 @@ SELECT SQL_CALC_FOUND_ROWS  wp_2_posts.ID
 ```
 chmod +x aggregate_slowlog.sh
 # デフォルト（マークダウンで出力）
-./aggregate_slowlog.sh --path=/var/log/slow.log
+./aggregate_slowlog.sh --path=/path/to/slow.log
 
 # CSVで出力
-./aggregate_slowlog.sh --path=/var/log/slow.log --output=csv
+./aggregate_slowlog.sh --path=/path/to/slow.log --output=csv
 
 # サンプルクエリあり
-./aggregate_slowlog.sh --path=/var/log/slow.log --detail
+./aggregate_slowlog.sh --path=/path/to/slow.log --detail
 
+# 日時指定（6/1 0時～6/1 23:59）
+./aggregate_slowlog.sh --path=/path/to/slow.log --start="20250601" --end="20250601 23:59"
 
+# 特定テーブル
+./aggregate_slowlog.sh --path=/path/to/slow.log --table=wp_posts
 ```
 
 ### 出力例
