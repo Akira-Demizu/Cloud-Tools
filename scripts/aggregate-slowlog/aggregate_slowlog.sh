@@ -1,13 +1,45 @@
 #!/bin/bash
 
-# === 引数処理 ===
-if [ $# -lt 1 ]; then
-  echo "Usage: $0 /path/to/slow.log [csv|md]"
+# === デフォルト設定 ===
+FORMAT="md"           # デフォルトはマークダウン
+INCLUDE_SAMPLE=false  # デフォルトはサンプルクエリ非表示
+
+# === 引数処理（ロングオプション） ===
+for arg in "$@"; do
+  case $arg in
+    --path=*)
+      SLOWLOG="${arg#*=}"
+      shift
+      ;;
+    --output=csv)
+      FORMAT="csv"
+      shift
+      ;;
+    --output=md)
+      FORMAT="md"
+      shift
+      ;;
+    --detail)
+      INCLUDE_SAMPLE=true
+      shift
+      ;;
+    *)
+      echo "Usage: $0 --path=/path/to/slow.log [--output=csv|md] [--detail]"
+      exit 1
+      ;;
+  esac
+done
+
+# === 必須チェック ===
+if [ -z "$SLOWLOG" ]; then
+  echo "Error: --path is required."
   exit 1
 fi
 
-SLOWLOG="$1"
-FORMAT="${2:-md}"  # デフォルトは markdown
+if [[ ! -f "$SLOWLOG" ]]; then
+  echo "Error: File '$SLOWLOG' not found."
+  exit 1
+fi
 
 # === 一時ファイル ===
 TMP_DIR=$(mktemp -d)
@@ -30,8 +62,8 @@ awk '
   print qt "|" db "|" query;
 }' "$SLOWLOG" > "$PARSED"
 
-# === 集計・出力 ===
-awk -v format="$FORMAT" -F'|' '
+# === 集計＆出力 ===
+awk -v format="$FORMAT" -v include_sample="$INCLUDE_SAMPLE" -F'|' '
 function extract_tables(sql, arr,    lower, i, tbls, tbl) {
   lower = tolower(sql)
   n = split(lower, arr, /(from|join|update|into)/)
@@ -39,7 +71,7 @@ function extract_tables(sql, arr,    lower, i, tbls, tbl) {
   for (i = 2; i <= n; i++) {
     if (match(arr[i], /[ \t\n\r`]*([a-zA-Z_][a-zA-Z0-9_\.]*)/, m)) {
       tbl = m[1]
-      sub(/\..*$/, "", tbl)  # スキーマ除去
+      sub(/\..*$/, "", tbl)
       if (!(tbl in seen)) {
         seen[tbl] = 1
         tbls = (tbls == "" ? tbl : tbls "," tbl)
@@ -64,10 +96,19 @@ function extract_tables(sql, arr,    lower, i, tbls, tbl) {
 
 END {
   if (format == "csv") {
-    print "No,Tables,Count,AvgQueryTime(s),SampleQuery"
+    if (include_sample == "true") {
+      print "No,Tables,Count,AvgQueryTime(s),SampleQuery"
+    } else {
+      print "No,Tables,Count,AvgQueryTime(s)"
+    }
   } else {
-    print "| No | Tables | Count | AvgQueryTime(s) | SampleQuery |"
-    print "|----|--------|--------|------------------|--------------|"
+    if (include_sample == "true") {
+      print "| No | Tables | Count | AvgQueryTime(s) | SampleQuery |"
+      print "|----|--------|--------|------------------|--------------|"
+    } else {
+      print "| No | Tables | Count | AvgQueryTime(s) |"
+      print "|----|--------|--------|------------------|"
+    }
   }
 
   i = 1
@@ -76,15 +117,22 @@ END {
     avg = total_qt[k] / count[k]
     q = sample[k]
     gsub(/"/, "\"\"", q)
+    gsub(/\|/, "\\|", q)
     if (format == "csv") {
-      printf "%d,\"%s\",%d,%.6f,\"%s\"\n", i++, k, count[k], avg, q
+      if (include_sample == "true") {
+        printf "%d,\"%s\",%d,%.6f,\"%s\"\n", i++, k, count[k], avg, q
+      } else {
+        printf "%d,\"%s\",%d,%.6f\n", i++, k, count[k], avg
+      }
     } else {
-      gsub(/\|/, "\\|", q)  # マークダウン対策
-      printf "| %d | %s | %d | %.6f | `%s` |\n", i++, k, count[k], avg, q
+      if (include_sample == "true") {
+        printf "| %d | %s | %d | %.6f | `%s` |\n", i++, k, count[k], avg, q
+      } else {
+        printf "| %d | %s | %d | %.6f |\n", i++, k, count[k], avg
+      }
     }
   }
 }
 ' "$PARSED"
 
-# === クリーンアップ ===
 rm -rf "$TMP_DIR"

@@ -43,11 +43,16 @@ SELECT SQL_CALC_FOUND_ROWS  wp_2_posts.ID
 
 ```
 chmod +x aggregate_slowlog.sh
-# デフォルト（マークダウン形式）
-./aggregate_slowlog.sh /path/to/slow.log
+# デフォルト（マークダウンで出力）
+./aggregate_slowlog.sh --path=/var/log/slow.log
 
 # CSVで出力
-./aggregate_slowlog.sh /path/to/slow.log csv
+./aggregate_slowlog.sh --path=/var/log/slow.log --output=csv
+
+# サンプルクエリあり
+./aggregate_slowlog.sh --path=/var/log/slow.log --detail
+
+
 ```
 
 ### 出力例
