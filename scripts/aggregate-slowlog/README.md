@@ -24,7 +24,7 @@ SELECT SQL_CALC_FOUND_ROWS  wp_2_posts.ID
 スクリプト：シェル
 パラメータ：対象slow.logへのパス
 出力結果：マークダウン（デフォルト） or CSV
-出力項目：No、対象テーブル、発生回数、平均クエリ時間（s）、サンプルクエリ
+出力項目：No、スキーマ、対象テーブル、発生回数、平均クエリ時間（s）、サンプルクエリ
 出力順序：発生回数の降順
 
 ### 実行
@@ -62,15 +62,15 @@ chmod +x aggregate_slowlog.sh
 #### マークダウン
 
 ```
-| No | Tables        | Count | AvgQueryTime(s) | SampleQuery |
-|----|---------------|--------|------------------|--------------|
-| 1  | wp_2_posts    | 2     | 1.971794         | `SELECT SQL_CALC_FOUND_ROWS wp_2_posts.ID FROM ...` |
+| No | Schema | Tables        | Count | AvgQueryTime(s) | SampleQuery |
+|----|--------|---------------|--------|------------------|--------------|
+| 1  | sample-net | wp_2_posts    | 2     | 1.971794         | `SELECT SQL_CALC_FOUND_ROWS wp_2_posts.ID FROM ...` |
 ```
 
 #### CSV
 
 ```
-No,Tables,Count,AvgQueryTime(s),SampleQuery
-1,"wp_2_posts",2,1.971794,"SELECT SQL_CALC_FOUND_ROWS wp_2_posts.ID FROM wp_2_posts WHERE ..."
-2,"some_custom_table",1,0.872115,"SELECT * FROM some_custom_table JOIN another_table ..."
+No,Schema,Tables,Count,AvgQueryTime(s),SampleQuery
+1,sample-net,"wp_2_posts",2,1.971794,"SELECT SQL_CALC_FOUND_ROWS wp_2_posts.ID FROM wp_2_posts WHERE ..."
+2,example-db,"some_custom_table",1,0.872115,"SELECT * FROM some_custom_table JOIN another_table ..."
 ```
