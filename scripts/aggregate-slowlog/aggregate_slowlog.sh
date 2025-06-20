@@ -79,7 +79,7 @@ function to_epoch(y, mo, d, h, mi,    cmd, result) {
   keep = (log_epoch >= from && log_epoch <= to)
 }
 /^# Query_time:/ { qt = $3 }
-/^use / { db=$2 }
+/^use / { db = $2; gsub(/[`;]/, "", db) }
 /^SET timestamp=/ { next }
 /^SELECT/ || /^INSERT/ || /^UPDATE/ || /^DELETE/ {
   if (!keep) next
@@ -136,17 +136,17 @@ BEGIN {
 END {
   if (format == "csv") {
     if (include_sample == "true") {
-      print "No,Tables,Count,AvgQueryTime(s),SampleQuery"
+      print "No,Schema,Tables,Count,AvgQueryTime(s),SampleQuery"
     } else {
-      print "No,Tables,Count,AvgQueryTime(s)"
+      print "No,Schema,Tables,Count,AvgQueryTime(s)"
     }
   } else {
     if (include_sample == "true") {
-      print "| No | Tables | Count | AvgQueryTime(s) | SampleQuery |"
-      print "|----|--------|--------|------------------|--------------|"
+      print "| No | Schema | Tables | Count | AvgQueryTime(s) | SampleQuery |"
+      print "|----|--------|--------|-------|------------------|--------------|"
     } else {
-      print "| No | Tables | Count | AvgQueryTime(s) |"
-      print "|----|--------|--------|------------------|"
+      print "| No | Schema | Tables | Count | AvgQueryTime(s) |"
+      print "|----|--------|--------|-------|------------------|"
     }
   }
   i = 1
@@ -158,15 +158,15 @@ END {
     gsub(/\|/, "\\|", q)
     if (format == "csv") {
       if (include_sample == "true") {
-        printf "%d,\"%s\",%d,%.6f,\"%s\"\n", i++, k, count[k], avg, q
+        printf "%d,\"%s\",\"%s\",%d,%.6f,\"%s\"\n", i++, db, k, count[k], avg, q
       } else {
-        printf "%d,\"%s\",%d,%.6f\n", i++, k, count[k], avg
+        printf "%d,\"%s\",\"%s\",%d,%.6f\n", i++, db, k, count[k], avg
       }
     } else {
       if (include_sample == "true") {
-        printf "| %d | %s | %d | %.6f | `%s` |\n", i++, k, count[k], avg, q
+        printf "| %d | %s | %s | %d | %.6f | `%s` |\n", i++, db, k, count[k], avg, q
       } else {
-        printf "| %d | %s | %d | %.6f |\n", i++, k, count[k], avg
+        printf "| %d | %s | %s | %d | %.6f |\n", i++, db, k, count[k], avg
       }
     }
   }
