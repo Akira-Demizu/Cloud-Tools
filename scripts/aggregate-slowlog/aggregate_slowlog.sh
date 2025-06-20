@@ -58,7 +58,7 @@ PARSED="$TMP_DIR/parsed.log"
 # ファイル名生成（logファイル名_YYYYMMDDHHMMSS）
 BASENAME=$(basename "$SLOWLOG")
 NOW=$(date +%Y%m%d%H%M%S)
-FILENAME="${BASENAME%.*}_$NOW.$FORMAT"
+FILENAME="${BASENAME}_$NOW.$FORMAT"
 OUTFILE="$TMP_DIR/$FILENAME"
 
 awk -v from="$FROM_EPOCH" -v to="$TO_EPOCH" '
