@@ -9,7 +9,7 @@ FILTER_TABLES=()
 OUTPUT_DIR=""
 
 usage() {
-  echo "Usage: $0 --path=/path/to/slow.log [--output=/path/to/outputdir] [--format=md|csv] [--encoding=utf8|utf8-bom|shift_jis] [--detail] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
+  echo "Usage: $0 [--path=/path/to/slow.log] [--output=/path/to/outputdir] [--format=md|csv] [--encoding=utf8|utf8-bom|shift_jis] [--detail] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
   exit 1
 }
 
@@ -48,7 +48,7 @@ for arg in "$@"; do
   esac
 done
 
-if [ -z "$SLOWLOG" ]; then echo "Error: --path is required."; usage; fi
+if [ -z "$SLOWLOG" ]; then SLOWLOG="/var/log/mysql/slow.log"; fi
 if [ ! -f "$SLOWLOG" ]; then echo "Error: File '$SLOWLOG' not found."; exit 1; fi
 if [ -n "$OUTPUT_DIR" ] && [ ! -d "$OUTPUT_DIR" ]; then echo "Error: Output directory '$OUTPUT_DIR' not found."; exit 1; fi
 
