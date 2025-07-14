@@ -50,6 +50,13 @@ if [ -z "$SLOWLOG" ]; then SLOWLOG="/var/log/mysql/slow.log"; fi
 if [ ! -f "$SLOWLOG" ]; then echo "Error: File '$SLOWLOG' not found."; exit 1; fi
 if [ -n "$OUTPUT_DIR" ] && [ ! -d "$OUTPUT_DIR" ]; then echo "Error: Output directory '$OUTPUT_DIR' not found."; exit 1; fi
 
+# Handle .gz slowlog files
+if [[ "$SLOWLOG" == *.gz ]]; then
+  TMP_SLOWLOG="$TMP_DIR/slow.log"
+  gunzip -c "$SLOWLOG" > "$TMP_SLOWLOG"
+  SLOWLOG="$TMP_SLOWLOG"
+fi
+
 TMP_DIR=$(mktemp -d)
 PARSED="$TMP_DIR/parsed.log"
 
@@ -132,6 +139,8 @@ BEGIN {
   if (!sample[key]) sample[key] = q
 }
 END {
+  total_count = 0
+  total_qt_sum = 0
   if (format == "csv") {
     print "No,Schema,Tables,Count,AvgQueryTime(s),SampleQuery"
   } else {
@@ -150,6 +159,15 @@ END {
     } else {
       printf "| %d | %s | %s | %d | %.6f |\n", i++, db, k, count[k], avg
     }
+    total_count += count[k]
+    total_qt_sum += total_qt[k]
+  }
+  if (format == "csv") {
+    print ""
+    print ",,,\"Total Count\",\"Average Query Time\""
+    printf ",,,%d,%.6f\n", total_count, (total_qt_sum / total_count)
+  } else {
+    print "|   |          | **Count合計 / AvgQueryTime(s)平均** | **" total_count "** | **" (total_qt_sum / total_count) "** |"
   }
 }' "$PARSED" > "$OUTFILE"
 
