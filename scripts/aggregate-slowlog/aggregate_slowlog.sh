@@ -98,9 +98,9 @@ function to_epoch(y, mo, d, h, mi,    cmd, result) {
 ' "$SLOWLOG" > "$PARSED"
 
 awk -v format="$FORMAT" -v tables_filter="${FILTER_TABLES[*]}" -F'|' '
-function extract_tables(sql, arr,    lower, i, tbls, tbl) {
+function extract_tables(sql, arr, lower, i, tbls, tbl) {
   lower = tolower(sql)
-  n = split(lower, arr, /(from|join|update|into)/)
+  n = split(lower, arr, /[[:space:]]+(from|join|update|into)[[:space:]]+/)
   tbls = ""
   for (i = 2; i <= n; i++) {
     if (match(arr[i], /[ \t\n\r`]*([a-zA-Z_][a-zA-Z0-9_\.]*)/, m)) {
