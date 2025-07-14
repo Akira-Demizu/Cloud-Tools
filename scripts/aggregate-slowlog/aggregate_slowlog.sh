@@ -2,14 +2,13 @@
 
 FORMAT="md"
 ENCODING="utf8"
-INCLUDE_SAMPLE=false
 FROM_EPOCH=0
 TO_EPOCH=32503680000
 FILTER_TABLES=()
 OUTPUT_DIR=""
 
 usage() {
-  echo "Usage: $0 --path=/path/to/slow.log [--output=/path/to/outputdir] [--format=md|csv] [--encoding=utf8|utf8-bom|shift_jis] [--detail] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
+  echo "Usage: $0 [--path=/path/to/slow.log] [--output=/path/to/outputdir] [--format=md|csv] [--encoding=utf8|utf8-bom|shift_jis] [--start='YYYYMMDD [hh[:mm[:ss]]'] [--end='YYYYMMDD [hh[:mm[:ss]]'] [--table=table1,table2]"
   exit 1
 }
 
@@ -40,7 +39,6 @@ for arg in "$@"; do
     --output=*) OUTPUT_DIR="${arg#*=}" ;;
     --format=csv|--format=md) FORMAT="${arg#*=}" ;;
     --encoding=*) ENCODING="${arg#*=}" ;;
-    --detail) INCLUDE_SAMPLE=true ;;
     --start=*) FROM_EPOCH=$(parse_datetime "${arg#*=}") ;;
     --end=*) TO_EPOCH=$(parse_datetime "${arg#*=}") ;;
     --table=*) IFS=',' read -ra FILTER_TABLES <<< "${arg#*=}" ;;
@@ -48,7 +46,7 @@ for arg in "$@"; do
   esac
 done
 
-if [ -z "$SLOWLOG" ]; then echo "Error: --path is required."; usage; fi
+if [ -z "$SLOWLOG" ]; then SLOWLOG="/var/log/mysql/slow.log"; fi
 if [ ! -f "$SLOWLOG" ]; then echo "Error: File '$SLOWLOG' not found."; exit 1; fi
 if [ -n "$OUTPUT_DIR" ] && [ ! -d "$OUTPUT_DIR" ]; then echo "Error: Output directory '$OUTPUT_DIR' not found."; exit 1; fi
 
@@ -92,7 +90,7 @@ function to_epoch(y, mo, d, h, mi,    cmd, result) {
 }
 ' "$SLOWLOG" > "$PARSED"
 
-awk -v format="$FORMAT" -v include_sample="$INCLUDE_SAMPLE" -v tables_filter="${FILTER_TABLES[*]}" -F'|' '
+awk -v format="$FORMAT" -v tables_filter="${FILTER_TABLES[*]}" -F'|' '
 function extract_tables(sql, arr,    lower, i, tbls, tbl) {
   lower = tolower(sql)
   n = split(lower, arr, /(from|join|update|into)/)
@@ -135,19 +133,10 @@ BEGIN {
 }
 END {
   if (format == "csv") {
-    if (include_sample == "true") {
-      print "No,Schema,Tables,Count,AvgQueryTime(s),SampleQuery"
-    } else {
-      print "No,Schema,Tables,Count,AvgQueryTime(s)"
-    }
+    print "No,Schema,Tables,Count,AvgQueryTime(s),SampleQuery"
   } else {
-    if (include_sample == "true") {
-      print "| No | Schema | Tables | Count | AvgQueryTime(s) | SampleQuery |"
-      print "|----|--------|--------|-------|------------------|--------------|"
-    } else {
-      print "| No | Schema | Tables | Count | AvgQueryTime(s) |"
-      print "|----|--------|--------|-------|------------------|"
-    }
+    print "| No | Schema | Tables | Count | AvgQueryTime(s) |"
+    print "|----|--------|--------|-------|------------------|"
   }
   i = 1
   PROCINFO["sorted_in"] = "@val_num_desc"
@@ -157,17 +146,9 @@ END {
     gsub(/"/, "\"\"", q)
     gsub(/\|/, "\\|", q)
     if (format == "csv") {
-      if (include_sample == "true") {
-        printf "%d,\"%s\",\"%s\",%d,%.6f,\"%s\"\n", i++, db, k, count[k], avg, q
-      } else {
-        printf "%d,\"%s\",\"%s\",%d,%.6f\n", i++, db, k, count[k], avg
-      }
+      printf "%d,\"%s\",\"%s\",%d,%.6f,\"%s\"\n", i++, db, k, count[k], avg, q
     } else {
-      if (include_sample == "true") {
-        printf "| %d | %s | %s | %d | %.6f | `%s` |\n", i++, db, k, count[k], avg, q
-      } else {
-        printf "| %d | %s | %s | %d | %.6f |\n", i++, db, k, count[k], avg
-      }
+      printf "| %d | %s | %s | %d | %.6f |\n", i++, db, k, count[k], avg
     }
   }
 }' "$PARSED" > "$OUTFILE"
