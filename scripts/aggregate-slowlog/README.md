@@ -35,7 +35,7 @@ chmod +x aggregate_slowlog.sh
 ./aggregate_slowlog.sh --path=/path/to/slow.log
 
 # CSV&サンプルクエリあり&ファイル出力
-./aggregate_slowlog.sh --path=/path/to/slow.log --output=/tmp --format=csv --detail
+./aggregate_slowlog.sh --path=/path/to/slow.log --output=/tmp --format=csv
 
 # 日時指定（6/1 0時～6/1 23:59）
 ./aggregate_slowlog.sh --path=/path/to/slow.log --start="20250601" --end="20250601 23:59"

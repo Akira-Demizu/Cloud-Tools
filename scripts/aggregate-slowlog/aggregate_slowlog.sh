@@ -50,6 +50,13 @@ if [ -z "$SLOWLOG" ]; then SLOWLOG="/var/log/mysql/slow.log"; fi
 if [ ! -f "$SLOWLOG" ]; then echo "Error: File '$SLOWLOG' not found."; exit 1; fi
 if [ -n "$OUTPUT_DIR" ] && [ ! -d "$OUTPUT_DIR" ]; then echo "Error: Output directory '$OUTPUT_DIR' not found."; exit 1; fi
 
+# Handle .gz slowlog files
+if [[ "$SLOWLOG" == *.gz ]]; then
+  TMP_SLOWLOG="$TMP_DIR/slow.log"
+  gunzip -c "$SLOWLOG" > "$TMP_SLOWLOG"
+  SLOWLOG="$TMP_SLOWLOG"
+fi
+
 TMP_DIR=$(mktemp -d)
 PARSED="$TMP_DIR/parsed.log"
 
