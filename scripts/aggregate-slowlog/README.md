@@ -31,17 +31,17 @@ SELECT SQL_CALC_FOUND_ROWS  wp_2_posts.ID
 
 ```
 chmod +x aggregate_slowlog.sh
-# デフォルト（マークダウンで出力）
-./aggregate_slowlog.sh --path=/path/to/slow.log
+# デフォルト
+./aggregate_slowlog.sh
 
 # CSV&サンプルクエリあり&ファイル出力
-./aggregate_slowlog.sh --path=/path/to/slow.log --output=/tmp --format=csv
+./aggregate_slowlog.sh --path=/samples/slow.log --output=/outputs --format=csv
 
 # 日時指定（6/1 0時～6/1 23:59）
-./aggregate_slowlog.sh --path=/path/to/slow.log --start="20250601" --end="20250601 23:59"
+./aggregate_slowlog.sh --start="20250601" --end="20250601 23:59"
 
 # 特定テーブル
-./aggregate_slowlog.sh --path=/path/to/slow.log --table=wp_posts
+./aggregate_slowlog.sh --table=wp_posts
 ```
 
 ### オプション
@@ -62,15 +62,14 @@ chmod +x aggregate_slowlog.sh
 #### マークダウン
 
 ```
-| No | Schema | Tables        | Count | AvgQueryTime(s) | SampleQuery |
-|----|--------|---------------|--------|------------------|--------------|
-| 1  | sample-net | wp_2_posts    | 2     | 1.971794         | `SELECT SQL_CALC_FOUND_ROWS wp_2_posts.ID FROM ...` |
+| No | Schema | Tables | Count | AvgQueryTime(s) |
+|----|--------|--------|-------|------------------|
+| 1 | test_db | wp_posts,wp_postmeta | 3740 | 2.189744 |
 ```
 
 #### CSV
 
 ```
 No,Schema,Tables,Count,AvgQueryTime(s),SampleQuery
-1,sample-net,"wp_2_posts",2,1.971794,"SELECT SQL_CALC_FOUND_ROWS wp_2_posts.ID FROM wp_2_posts WHERE ..."
-2,example-db,"some_custom_table",1,0.872115,"SELECT * FROM some_custom_table JOIN another_table ..."
+1,"test_db","wp_posts,wp_postmeta",3740,2.189744,"SELECT SQL_CALC_FOUND_ROWS  wp_posts.ID 					 FROM wp_posts  LEFT JOIN wp_postmeta ON ( wp_posts.ID = wp_postmeta.post_id AND wp_postmeta.meta_key = 'is_pr' )  LEFT JOIN wp_postmeta AS mt1 ON ( wp_posts.ID = mt1.post_id ) 					 WHERE 1=1  AND (    (      wp_postmeta.post_id IS NULL      OR      ( mt1.meta_key = 'is_pr' AND mt1.meta_value != '1' )   ) ) AND ((wp_posts.post_type = 'post' AND (wp_posts.post_status = 'publish' OR wp_posts.post_status = 'acf-disabled')) OR (wp_posts.post_type = 'pickup' AND (wp_posts.post_status = 'publish' OR wp_posts.post_status = 'acf-disabled')) OR (wp_posts.post_type = 'special' AND (wp_posts.post_status = 'publish' OR wp_posts.post_status = 'acf-disabled'))) 					 GROUP BY wp_posts.ID 					 ORDER BY wp_posts.menu_order, wp_posts.post_modified DESC 					 LIMIT 0, 30;"
 ```
