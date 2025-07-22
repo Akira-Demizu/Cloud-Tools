@@ -1,0 +1,22 @@
+# Time: 250712 14:45:01
+# User@Host: profession-net[profession-net] @ localhost []
+# Thread_id: 8090137  Schema: profession-net  QC_hit: No
+# Query_time: 1.667588  Lock_time: 0.000163  Rows_sent: 0  Rows_examined: 143851
+# Rows_affected: 0  Bytes_sent: 83
+SET timestamp=1752299101;
+SELECT   wp_posts.ID
+                                         FROM wp_posts  LEFT JOIN wp_postmeta ON ( wp_posts.ID = wp_postmeta.post_id )  LEFT JOIN wp_postmeta AS mt1 ON ( wp_posts.ID = mt1.post_id AND mt1.meta_key = 'checkout_blog_id' )
+                                         WHERE 1=1  AND (
+  ( wp_posts.post_date >= '2025-01-01 00:00:00' AND wp_posts.post_date <= '2025-12-31 23:59:59' )
+) AND (
+  ( wp_postmeta.meta_key = '_customer_user' AND wp_postmeta.meta_value = '26877' )
+  AND
+  (
+    (
+      mt1.post_id IS NULL
+    )
+  )
+) AND wp_posts.post_type IN ('shop_order', 'shop_order_refund') AND ((wp_posts.post_status = 'wc-pending' OR wp_posts.post_status = 'wc-processing' OR wp_posts.post_status = 'wc-on-hold' OR wp_posts.post_status = 'wc-completed' OR wp_posts.post_status = 'wc-cancelled' OR wp_posts.post_status = 'wc-refunded' OR wp_posts.post_status = 'wc-shipped' OR wp_posts.post_status = 'wc-contract-updated'))
+                                         GROUP BY wp_posts.ID
+                                         ORDER BY wp_posts.post_date DESC
+                                         LIMIT 0, 10;

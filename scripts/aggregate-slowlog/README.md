@@ -84,3 +84,11 @@ No,Schema,Tables,Count,AvgQueryTime(s),SampleQuery
 ,,,"Total Count","Average Query Time"
 ,,,4373,2.117859
 ```
+
+### テスト
+
+TODO:テストツールの導入
+
+```shell
+./aggregate_slowlog.sh --path=./tests/include_update_text.log
+```
