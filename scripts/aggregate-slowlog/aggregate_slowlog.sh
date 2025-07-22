@@ -86,9 +86,9 @@ function to_epoch(y, mo, d, h, mi,    cmd, result) {
 /^# Query_time:/ { qt = $3 }
 /^use / { db = $2; gsub(/[`;]/, "", db) }
 /^SET timestamp=/ { next }
-/^SELECT/ || /^INSERT/ || /^UPDATE/ || /^DELETE/ {
+/^SELECT/ || /^INSERT/ || /^UPDATE/ || /^DELETE/ || /^REPLACE/ || /^ALTER/ || /^CREATE/ || /^DROP/ {
   if (!keep) next
-  query=$0
+  query = $0
   while ((getline line) > 0) {
     if (line ~ /^#/) break
     query = query " " line
@@ -98,19 +98,32 @@ function to_epoch(y, mo, d, h, mi,    cmd, result) {
 ' "$SLOWLOG" > "$PARSED"
 
 awk -v format="$FORMAT" -v tables_filter="${FILTER_TABLES[*]}" -F'|' '
-function extract_tables(sql, arr, lower, i, tbls, tbl) {
+function extract_tables(sql, arr, lower, i, tbls, tbl, m, m2) {
   lower = tolower(sql)
-  n = split(lower, arr, /[[:space:]]+(from|join|update|into)[[:space:]]+/)
+  n = split(lower, arr, /[[:space:]]+(from|join|update|into|delete)[[:space:]]+/)
   tbls = ""
   for (i = 2; i <= n; i++) {
     if (match(arr[i], /[ \t\n\r`]*([a-zA-Z_][a-zA-Z0-9_\.]*)/, m)) {
       tbl = m[1]
       sub(/\..*$/, "", tbl)
+      if (tbl ~ /^(select|where|group|order|limit|on|and|or|case|when|then|else|end|as|using|natural|inner|outer|left|right|cross|straight_join|force|ignore|key|index|use)$/) continue
       if (!(tbl in seen)) {
         seen[tbl] = 1
         tbls = (tbls == "" ? tbl : tbls "," tbl)
       }
     }
+  }
+  #print "DEBUG: " sql > "/dev/stderr"
+  if (tbls == "" && match(lower, /^[ \t]*update[ \t]+[`]?([a-zA-Z0-9_]+)[`]?/, m2)) {
+    tbl = m2[1]
+    gsub(/^`|`$/, "", tbl)
+    sub(/^.*\./, "", tbl)
+    tbls = tbl
+  } else if (tbls == "" && match(lower, /^[ \t]*insert[ \t]+into[ \t]+[`]?([a-zA-Z0-9_]+)[`]?/, m2)) {
+    tbl = m2[1]
+    gsub(/^`|`$/, "", tbl)
+    sub(/^.*\./, "", tbl)
+    tbls = tbl
   }
   delete seen
   return (tbls == "" ? "unknown" : tbls)
@@ -121,8 +134,9 @@ BEGIN {
 {
   qt = $1 + 0
   db = $2
-  q = $3
+  q = substr($0, index($0,$3))
   tbls = extract_tables(q, parts)
+  if (tbls == "unknown") unknown_list[db "|" q "|" qt] = 1
   matched = (n_filters == 0)
   if (!matched) {
     for (f = 1; f <= n_filters; f++) {
@@ -168,6 +182,16 @@ END {
     printf ",,,%d,%.6f\n", total_count, (total_qt_sum / total_count)
   } else {
     print "|   |          | **Count合計 / AvgQueryTime(s)平均** | **" total_count "** | **" (total_qt_sum / total_count) "** |"
+  }
+  if (length(unknown_list) > 0) {
+    print ""
+    print "▼ unknown テーブルとして抽出されたクエリ一覧"
+    for (k in unknown_list) {
+      split(k, parts, "|")
+      print "QueryTime: " parts[3] " / Schema: " parts[1]
+      print "Query: " parts[2]
+      print ""
+    }
   }
 }' "$PARSED" > "$OUTFILE"
 

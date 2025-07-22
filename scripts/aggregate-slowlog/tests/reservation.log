@@ -1,0 +1,24 @@
+# Time: 250709  9:34:05
+# User@Host: profession-net[profession-net] @ localhost []
+# Thread_id: 7671665  Schema: profession-net  QC_hit: No
+# Query_time: 1.750689  Lock_time: 0.000183  Rows_sent: 5  Rows_examined: 479237
+# Rows_affected: 0  Bytes_sent: 343
+SET timestamp=1752021245;
+SELECT
+                                        gateway, currency, SUM(total) AS totals, COUNT(order_id) AS counts
+                                FROM (
+                                        SELECT
+                                                orders.id AS order_id,
+                                                MAX(CASE WHEN meta_key = '_payment_method' THEN meta_value END) gateway,
+                                                MAX(CASE WHEN meta_key = '_order_total' THEN meta_value END) total,
+                                                MAX(CASE WHEN meta_key = '_order_currency' THEN meta_value END) currency
+                                        FROM
+                                                wp_posts orders
+                                        LEFT JOIN
+                                                wp_postmeta order_meta ON order_meta.post_id = orders.id
+                                        WHERE orders.post_type = 'shop_order'
+                                                AND orders.post_status in ( 'wc-completed', 'wc-processing', 'wc-refunded' )
+                                                AND meta_key in( '_payment_method','_order_total','_order_currency')
+                                        GROUP BY orders.id
+                                ) order_gateways
+                                GROUP BY gateway, currency;
