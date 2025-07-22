@@ -106,6 +106,7 @@ function extract_tables(sql, arr, lower, i, tbls, tbl) {
     if (match(arr[i], /[ \t\n\r`]*([a-zA-Z_][a-zA-Z0-9_\.]*)/, m)) {
       tbl = m[1]
       sub(/\..*$/, "", tbl)
+      if (tbl ~ /^(select|where|group|order|limit|on|and|or|case|when|then|else|end|as|using|natural|inner|outer|left|right|cross|straight_join|force|ignore|key|index|use)$/) continue
       if (!(tbl in seen)) {
         seen[tbl] = 1
         tbls = (tbls == "" ? tbl : tbls "," tbl)
