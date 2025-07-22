@@ -124,6 +124,7 @@ BEGIN {
   db = $2
   q = $3
   tbls = extract_tables(q, parts)
+  if (tbls == "unknown") unknown_list[db "|" q "|" qt] = 1
   matched = (n_filters == 0)
   if (!matched) {
     for (f = 1; f <= n_filters; f++) {
@@ -169,6 +170,16 @@ END {
     printf ",,,%d,%.6f\n", total_count, (total_qt_sum / total_count)
   } else {
     print "|   |          | **Count合計 / AvgQueryTime(s)平均** | **" total_count "** | **" (total_qt_sum / total_count) "** |"
+  }
+  if (length(unknown_list) > 0) {
+    print ""
+    print "▼ unknown テーブルとして抽出されたクエリ一覧"
+    for (k in unknown_list) {
+      split(k, parts, "|")
+      print "QueryTime: " parts[3] " / Schema: " parts[1]
+      print "Query: " parts[2]
+      print ""
+    }
   }
 }' "$PARSED" > "$OUTFILE"
 
