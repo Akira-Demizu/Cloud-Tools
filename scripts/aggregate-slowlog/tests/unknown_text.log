@@ -1,0 +1,7 @@
+# Time: 250709  9:45:47
+# User@Host: profession-net[profession-net] @ localhost []
+# Thread_id: 7672824  Schema: profession-net  QC_hit: No
+# Query_time: 2.344631  Lock_time: 0.000045  Rows_sent: 0  Rows_examined: 3
+# Rows_affected: 1  Bytes_sent: 52
+SET timestamp=1752021947;
+UPDATE `wp_postmeta` SET `meta_value` = '1752021947:1' WHERE `post_id` = 10455199 AND `meta_key` = '_edit_lock';
