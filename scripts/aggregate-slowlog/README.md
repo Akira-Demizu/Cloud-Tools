@@ -96,3 +96,7 @@ TODO:テストツールの導入
 ```shell
 ./aggregate_slowlog.sh --path=./tests/reservation.log
 ```
+
+```shell
+./aggregate_slowlog.sh --path=./tests/unknown_text.log
+```
